@@ -1,10 +1,9 @@
 package api
 
 import (
-	"net/http"
+	"github.com/kataras/iris"
 
-	apiErrors "github.com/anthonynsimon/parrot/parrot-api/errors"
-	"github.com/pressly/chi"
+	apiErrors "github.com/iris-contrib/parrot/parrot-api/errors"
 )
 
 // Role is an identifier for a group of assigned grants.
@@ -130,23 +129,22 @@ func mustBeProjectClient(projID, clientID string) error {
 
 // mustAuthorize authorizes or denies requests based on required rights for action.
 // Identifies if requesting subject is able to perform action on the particular project.
-func mustAuthorize(action RoleGrant, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		projectID := chi.URLParam(r, "projectID")
+func mustAuthorize(action RoleGrant) iris.Handler {
+	return func(ctx iris.Context) {
+		projectID := ctx.Params().Get("projectID")
 		if projectID == "" {
-			handleError(w, apiErrors.ErrBadRequest)
+			handleError(ctx, apiErrors.ErrBadRequest)
 			return
 		}
 
-		ctx := r.Context()
 		subType, err := getSubjectType(ctx)
 		if err != nil {
-			handleError(w, apiErrors.ErrBadRequest)
+			handleError(ctx, apiErrors.ErrBadRequest)
 			return
 		}
 		requesterID, err := getSubjectID(ctx)
 		if err != nil {
-			handleError(w, apiErrors.ErrBadRequest)
+			handleError(ctx, apiErrors.ErrBadRequest)
 			return
 		}
 
@@ -156,26 +154,26 @@ func mustAuthorize(action RoleGrant, next http.HandlerFunc) http.HandlerFunc {
 		case userSubject:
 			requesterRole, err = getProjectUserRole(projectID, requesterID)
 			if err != nil {
-				handleError(w, err)
+				handleError(ctx, err)
 				return
 			}
 		case clientSubject:
 			err := mustBeProjectClient(projectID, requesterID)
 			if err != nil {
-				handleError(w, err)
+				handleError(ctx, err)
 				return
 			}
 			requesterRole = clientRole
 		default:
-			handleError(w, apiErrors.ErrBadRequest)
+			handleError(ctx, apiErrors.ErrBadRequest)
 			return
 		}
 
 		if !isAllowed(Role(requesterRole), action) {
-			handleError(w, apiErrors.ErrForbiden)
+			handleError(ctx, apiErrors.ErrForbiden)
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		ctx.Next()
 	}
 }

@@ -6,21 +6,21 @@ import (
 	"os"
 	"time"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/anthonynsimon/parrot/parrot-api/api"
-	"github.com/anthonynsimon/parrot/parrot-api/auth"
-	"github.com/anthonynsimon/parrot/parrot-api/datastore"
-	"github.com/anthonynsimon/parrot/parrot-api/logger"
 	"github.com/joho/godotenv"
-	"github.com/pressly/chi"
-	"github.com/pressly/chi/middleware"
+	"github.com/kataras/golog"
+	"github.com/kataras/iris"
+	"github.com/kataras/iris/middleware/logger"
+	"github.com/kataras/iris/middleware/recover"
+
+	"github.com/iris-contrib/parrot/parrot-api/api"
+	"github.com/iris-contrib/parrot/parrot-api/auth"
+	"github.com/iris-contrib/parrot/parrot-api/datastore"
 )
 
 func init() {
 	// Config log
-	logrus.SetOutput(os.Stdout)
-	logrus.SetFormatter(&logrus.TextFormatter{})
-	logrus.SetLevel(logrus.InfoLevel)
+	golog.SetOutput(os.Stdout)
+	golog.SetLevel("info")
 }
 
 // TODO: refactor this into cli to start server
@@ -28,26 +28,26 @@ func main() {
 	// init environment variables
 	err := godotenv.Load()
 	if err != nil {
-		logrus.Info(err)
+		golog.Info(err)
 	}
 
 	// init and ping datastore
 	dbName := os.Getenv("PARROT_API_DB")
 	dbURL := os.Getenv("PARROT_API_DB_URL")
 	if dbName == "" || dbURL == "" {
-		logrus.Fatal("no db set in env")
+		golog.Fatal("no db set in env")
 	}
 
 	ds, err := datastore.NewDatastore(dbName, dbURL)
 	if err != nil {
-		logrus.Fatal(err)
+		golog.Fatal(err)
 	}
 	defer ds.Close()
 
 	// Ping DB until service is up, block meanwhile
 	blockAndRetry(5*time.Second, func() bool {
 		if err = ds.Ping(); err != nil {
-			logrus.Error(fmt.Sprintf("failed to ping datastore.\nerr: %s", err))
+			golog.Error(fmt.Sprintf("failed to ping datastore.\nerr: %s", err))
 			return false
 		}
 		return true
@@ -55,34 +55,30 @@ func main() {
 
 	migrate(dbName, ds)
 
-	router := chi.NewRouter()
-	router.Use(
-		func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Add("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
-				next.ServeHTTP(w, r)
-			})
+	app := iris.New()
+
+	app.Use(
+		recover.New(),
+		func(ctx iris.Context) {
+			ctx.Header("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+			ctx.Next()
 		},
-		middleware.Recoverer,
-		middleware.RequestID,
-		middleware.RealIP,
-		logger.Request,
-		middleware.StripSlashes,
+		logger.New(),
 	)
 
 	signingKey := os.Getenv("PARROT_AUTH_SIGNING_KEY")
 	if signingKey == "" {
-		logrus.Fatal("no auth signing key set")
+		golog.Fatal("no auth signing key set")
 	}
 	issuerName := os.Getenv("PARROT_AUTH_ISSUER_NAME")
 	if signingKey == "" {
-		logrus.Warn("no auth issuer name set, resorting to default")
+		golog.Warn("no auth issuer name set, resorting to default")
 		issuerName = "parrot-default"
 	}
 
 	tp := auth.TokenProvider{Name: issuerName, SigningKey: []byte(signingKey)}
-	router.Mount("/api/v1/auth", auth.NewRouter(ds, tp))
-	router.Mount("/api/v1", api.NewRouter(ds, tp))
+	app.Configure(auth.NewRouter(ds, tp))
+	app.Configure(api.NewRouter(ds, tp))
 
 	// config and init server
 	addr := ":8080"
@@ -90,29 +86,26 @@ func main() {
 		addr = os.Getenv("PARROT_API_HOST_PORT")
 	}
 
-	s := &http.Server{
+	srv := &http.Server{
 		Addr:           addr,
-		Handler:        router,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 
-	logrus.Info(fmt.Sprintf("server listening on %s", addr))
-
-	logrus.Fatal(s.ListenAndServe())
+	app.Run(iris.Server(srv))
 }
 
 func migrate(dbName string, ds datastore.Store) {
 	migrationStrategy := os.Getenv("PARROT_DB_MIGRATION_STRATEGY")
 	if migrationStrategy != "" {
-		logrus.Infof("migration strategy is set to '%s'", migrationStrategy)
+		golog.Infof("migration strategy is set to '%s'", migrationStrategy)
 	}
 
 	dirPath := os.Getenv("PARROT_DB_MIGRATIONS_DIR")
 	if dirPath == "" {
 		dirPath = fmt.Sprintf("./datastore/%s/migrations", dbName)
-		logrus.Infof("migrations directory not set, using default one: '%s'", dirPath)
+		golog.Infof("migrations directory not set, using default one: '%s'", dirPath)
 	}
 
 	var fn func(string) error
@@ -138,20 +131,20 @@ func migrate(dbName string, ds datastore.Store) {
 	case "down":
 		fn = ds.MigrateDown
 	default:
-		logrus.Fatalf("could not recognize migration strategy '%s'", migrationStrategy)
+		golog.Fatalf("could not recognize migration strategy '%s'", migrationStrategy)
 	}
 
-	logrus.Info("migrating...")
+	golog.Info("migrating...")
 	err := fn(dirPath)
 	if err != nil {
-		logrus.Fatal(err)
+		golog.Fatal(err)
 	}
-	logrus.Info("migration completed successfully")
+	golog.Info("migration completed successfully")
 }
 
 func blockAndRetry(d time.Duration, fn func() bool) {
 	for !fn() {
-		logrus.Infof("retrying in %s...\n", d.String())
+		golog.Infof("retrying in %s...\n", d.String())
 		time.Sleep(d)
 	}
 }

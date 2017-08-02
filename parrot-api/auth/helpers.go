@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/kataras/golog"
+	"github.com/kataras/iris"
 )
 
 // getAuthHeaderToken gets the token string from the HTTP Authorization header.
@@ -22,9 +23,9 @@ func getAuthHeaderToken(r *http.Request) (string, error) {
 }
 
 // getJSONBodyToken gets the token string from the HTTP JSON body.
-func getJSONBodyToken(r *http.Request) (string, error) {
+func getJSONBodyToken(ctx iris.Context) (string, error) {
 	var body map[string]interface{}
-	err := json.NewDecoder(r.Body).Decode(&body)
+	err := ctx.ReadJSON(&body)
 	if err != nil {
 		return "", err
 	}
@@ -56,7 +57,7 @@ func RenderJSON(w http.ResponseWriter, status int, headers map[string]string, pa
 
 	encoded, err := json.MarshalIndent(payload, "", "    ")
 	if err != nil {
-		logrus.Error(err)
+		golog.Error(err)
 	}
 
 	w.Write(encoded)

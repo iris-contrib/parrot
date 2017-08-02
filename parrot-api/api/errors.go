@@ -1,18 +1,17 @@
 package api
 
 import (
-	"net/http"
+	"github.com/kataras/iris"
 
-	"github.com/Sirupsen/logrus"
-	datastoreErrors "github.com/anthonynsimon/parrot/parrot-api/datastore/errors"
-	apiErrors "github.com/anthonynsimon/parrot/parrot-api/errors"
-	"github.com/anthonynsimon/parrot/parrot-api/render"
+	datastoreErrors "github.com/iris-contrib/parrot/parrot-api/datastore/errors"
+	apiErrors "github.com/iris-contrib/parrot/parrot-api/errors"
+	"github.com/iris-contrib/parrot/parrot-api/render"
 )
 
 // handleError writes an error response.
 // If the error is not a known API error, it will try to
 // cast it or simply write an Internal error.
-func handleError(w http.ResponseWriter, err error) {
+func handleError(ctx iris.Context, err error) {
 	// Try to match store error
 	var outErr *apiErrors.Error
 	// If cast is successful, done, we got our error
@@ -26,11 +25,11 @@ func handleError(w http.ResponseWriter, err error) {
 		case datastoreErrors.ErrAlreadyExists:
 			outErr = apiErrors.ErrAlreadyExists
 		default:
-			logrus.Error(err)
+			ctx.Application().Logger().Errorf("%v", err)
 			outErr = apiErrors.ErrInternal
 
 		}
 	}
 
-	render.Error(w, outErr.Status, outErr)
+	render.Error(ctx, outErr.Status, outErr)
 }

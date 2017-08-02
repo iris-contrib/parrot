@@ -1,9 +1,9 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
-	"net/http"
+
+	"github.com/kataras/iris"
 )
 
 var (
@@ -51,8 +51,8 @@ func (p *updateUserEmailPayload) Validate() error {
 	return nil
 }
 
-func decodePayloadAndValidate(r *http.Request, p ValidatablePayload) error {
-	err := json.NewDecoder(r.Body).Decode(&p)
+func decodePayloadAndValidate(ctx iris.Context, p ValidatablePayload) error {
+	err := ctx.ReadJSON(&p)
 	if err != nil {
 		return err
 	}

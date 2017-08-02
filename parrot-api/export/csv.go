@@ -5,7 +5,7 @@ import (
 
 	"encoding/csv"
 
-	"github.com/anthonynsimon/parrot/parrot-api/model"
+	"github.com/iris-contrib/parrot/parrot-api/model"
 )
 
 type CSV struct{}

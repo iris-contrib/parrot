@@ -3,7 +3,7 @@ package model
 import (
 	"regexp"
 
-	"github.com/anthonynsimon/parrot/parrot-api/errors"
+	"github.com/iris-contrib/parrot/parrot-api/errors"
 )
 
 // Validatable specifies the interface to validate structs.

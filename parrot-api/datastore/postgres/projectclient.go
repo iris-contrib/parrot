@@ -1,6 +1,6 @@
 package postgres
 
-import "github.com/anthonynsimon/parrot/parrot-api/model"
+import "github.com/iris-contrib/parrot/parrot-api/model"
 
 func (db *PostgresDB) GetProjectClients(projectID string) ([]model.ProjectClient, error) {
 	rows, err := db.Query("SELECT client_id, project_id, name, secret FROM project_clients WHERE project_id = $1", projectID)

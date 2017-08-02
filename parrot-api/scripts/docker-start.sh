@@ -14,7 +14,7 @@ then
         mkdir parrot && \
         cd parrot && \
         git init && \
-        git remote add origin https://github.com/anthonynsimon/parrot.git && \
+        git remote add origin https://github.com/iris-contrib/parrot.git && \
         git config core.sparseCheckout true && \
         echo "parrot-api" >> .git/info/sparse-checkout && \
         git pull --depth=1 origin master

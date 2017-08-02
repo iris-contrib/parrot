@@ -1,13 +1,14 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/anthonynsimon/parrot/parrot-api/auth"
-	apiErrors "github.com/anthonynsimon/parrot/parrot-api/errors"
+	"github.com/kataras/iris"
+
+	"github.com/iris-contrib/parrot/parrot-api/auth"
+	apiErrors "github.com/iris-contrib/parrot/parrot-api/errors"
 )
 
 // subjectType is an internal identifier to know if the requesting entity
@@ -21,40 +22,35 @@ const (
 
 // tokenMiddleware guards against request without a valid token.
 // Adds subject ID and subject type values to request context.
-func tokenMiddleware(tp auth.TokenProvider) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			tokenString, err := getTokenString(r)
-			if err != nil {
-				handleError(w, apiErrors.ErrUnauthorized)
-				return
-			}
+func tokenMiddleware(tp auth.TokenProvider) iris.Handler {
+	return func(ctx iris.Context) {
+		tokenString, err := getTokenString(ctx.Request())
+		if err != nil {
+			handleError(ctx, apiErrors.ErrUnauthorized)
+			return
+		}
 
-			claims, err := tp.ParseAndVerifyToken(tokenString)
-			if err != nil {
-				handleError(w, apiErrors.ErrUnauthorized)
-				return
-			}
+		claims, err := tp.ParseAndVerifyToken(tokenString)
+		if err != nil {
+			handleError(ctx, apiErrors.ErrUnauthorized)
+			return
+		}
 
-			subID := claims["sub"]
-			if subID == nil || subID == "" {
-				handleError(w, apiErrors.ErrInternal)
-				return
-			}
+		subID := claims["sub"]
+		if subID == nil || subID == "" {
+			handleError(ctx, apiErrors.ErrInternal)
+			return
+		}
 
-			subType := claims["subType"]
-			if subType == nil || subType == "" {
-				handleError(w, apiErrors.ErrInternal)
-				return
-			}
+		subType := claims["subType"]
+		if subType == nil || subType == "" {
+			handleError(ctx, apiErrors.ErrInternal)
+			return
+		}
 
-			ctx := r.Context()
-			ctx = context.WithValue(ctx, "subjectID", subID)
-			ctx = context.WithValue(ctx, "subjectType", subType)
-			newR := r.WithContext(ctx)
-
-			next.ServeHTTP(w, newR)
-		})
+		ctx.Values().Set("subjectID", subID)
+		ctx.Values().Set("subjectType", subType)
+		ctx.Next()
 	}
 }
 
@@ -73,8 +69,8 @@ func getTokenString(r *http.Request) (string, error) {
 }
 
 // getSubjectID extract subject ID from context.
-func getSubjectID(ctx context.Context) (string, error) {
-	v := ctx.Value("subjectID")
+func getSubjectID(ctx iris.Context) (string, error) {
+	v := ctx.Values().Get("subjectID")
 	if v == nil {
 		return "", apiErrors.ErrBadRequest
 	}
@@ -86,8 +82,8 @@ func getSubjectID(ctx context.Context) (string, error) {
 }
 
 // getSubjectType extract user type from context.
-func getSubjectType(ctx context.Context) (subjectType, error) {
-	subType := ctx.Value("subjectType")
+func getSubjectType(ctx iris.Context) (subjectType, error) {
+	subType := ctx.Values().Get("subjectType")
 	if subType == nil {
 		return "", apiErrors.ErrBadRequest
 	}

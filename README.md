@@ -1,6 +1,20 @@
+# This is a Parrot fork, converted to work faster with the [Iris Web Framework](http://iris-go.com)
+
+The original idea is to give a medium-sized project that new iris gophers can learn from.
+
+> Note: I didn't touch the implementation to be easier to read side by side. So it's not 100% iris and go idiomatic, the [original source code](https://github.com/anthonynsimon/parrot/tree/master/parrot-api) is fine for new users to learn from, but not perfect.
+
+The backend is located at [parrot-api](parrot-api/) folder, built with [Iris](https://github.com/kataras/iris).
+
+```bash
+$ go get -u github.com/kataras/iris
+```
+
+Bellow you'll find its original README, follow the project if you'd like it!
+
 # Parrot
 [![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://anthonynsimon.gitbooks.io/parrot/content/)
-[![MIT License](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/anthonynsimon/parrot/blob/master/LICENSE)
+[![MIT License](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/iris-contrib/parrot/blob/master/LICENSE)
 
 Self-hosted Localization Management Platform built with Go and Angular 2.  
 
@@ -26,7 +40,7 @@ Self-hosted Localization Management Platform built with Go and Angular 2.
 The easiest way to get started is using `docker` and `docker-compose`. Simply clone this repo, navigate to the root of it and start the services:
 
 ```bash
-$ git clone https://github.com/anthonynsimon/parrot.git
+$ git clone https://github.com/iris-contrib/parrot.git
 $ cd parrot
 $ ./scripts/buildweb.sh
 $ sudo ./scripts/start.sh
@@ -53,10 +67,10 @@ The `/etc/nginx/certs` and `/etc/nginx/vhost.d` volumes on the nginx container h
 If you deploy the API server on your own, be sure to serve it behind a secure reverse-proxy or another secure method.
 
 ## License
-This project is licensed under the [MIT](https://github.com/anthonynsimon/parrot/blob/master/LICENSE) license.
+This project is licensed under the [MIT](https://github.com/iris-contrib/parrot/blob/master/LICENSE) license.
 
 ## Issues
-The recommended medium to report and track issues is by opening one on [Github](https://github.com/anthonynsimon/parrot).
+The recommended medium to report and track issues is by opening one on [Github](https://github.com/iris-contrib/parrot).
 
 ## Contributing
 Want to hack on the project? Any kind of contribution is welcome!

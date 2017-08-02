@@ -1,15 +1,13 @@
 package api
 
 import (
-	"encoding/json"
-	"net/http"
-
 	"strings"
 
-	apiErrors "github.com/anthonynsimon/parrot/parrot-api/errors"
-	"github.com/anthonynsimon/parrot/parrot-api/model"
-	"github.com/anthonynsimon/parrot/parrot-api/render"
-	"github.com/pressly/chi"
+	apiErrors "github.com/iris-contrib/parrot/parrot-api/errors"
+	"github.com/iris-contrib/parrot/parrot-api/model"
+	"github.com/iris-contrib/parrot/parrot-api/render"
+
+	"github.com/kataras/iris"
 )
 
 type projectKeyPayload struct {
@@ -22,75 +20,75 @@ type projectKeyUpdatePayload struct {
 }
 
 // createProject is an API endpoint for creating new projects.
-func createProject(w http.ResponseWriter, r *http.Request) {
+func createProject(ctx iris.Context) {
 	project := model.Project{}
-	errs := decodeAndValidate(r.Body, &project)
+	errs := decodeAndValidate(ctx, &project)
 	if errs != nil {
-		render.Error(w, http.StatusUnprocessableEntity, errs)
+		render.Error(ctx, iris.StatusUnprocessableEntity, errs)
 		return
 	}
-	userID, err := getSubjectID(r.Context())
+	userID, err := getSubjectID(ctx)
 	if err != nil {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
 
 	// TODO: use a transaction for this
 	result, err := store.CreateProject(project)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 	pu := model.ProjectUser{ProjectID: result.ID, UserID: userID, Role: ownerRole}
 	_, err = store.AssignProjectUser(pu)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
-	render.JSON(w, http.StatusCreated, result)
+	render.JSON(ctx, iris.StatusCreated, result)
 }
 
 // updateProjectName is an API endpoint for updating the name of a project.
-func updateProjectName(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
+func updateProjectName(ctx iris.Context) {
+	projectID := ctx.Params().Get("projectID")
 	if projectID == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
 
 	project := model.Project{}
-	errs := decodeAndValidate(r.Body, &project)
+	errs := decodeAndValidate(ctx, &project)
 	if errs != nil {
-		render.Error(w, http.StatusUnprocessableEntity, errs)
+		render.Error(ctx, iris.StatusUnprocessableEntity, errs)
 		return
 	}
 
 	result, err := store.UpdateProjectName(projectID, project.Name)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
-	render.JSON(w, http.StatusOK, result)
+	render.JSON(ctx, iris.StatusOK, result)
 }
 
 // addProjectKey is an API endpoint for adding keys ('strings') to a project.
-func addProjectKey(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
+func addProjectKey(ctx iris.Context) {
+	projectID := ctx.Params().Get("projectID")
 	if projectID == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
 
 	var data = projectKeyPayload{}
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		handleError(w, err)
+	if err := ctx.ReadJSON(&data); err != nil {
+		handleError(ctx, err)
 		return
 	}
 
 	if data.Key == "" {
-		handleError(w, apiErrors.ErrUnprocessable)
+		handleError(ctx, apiErrors.ErrUnprocessable)
 		return
 	}
 
@@ -98,29 +96,30 @@ func addProjectKey(w http.ResponseWriter, r *http.Request) {
 
 	result, err := store.AddProjectKey(projectID, data.Key)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
-	render.JSON(w, http.StatusOK, result)
+	render.JSON(ctx, iris.StatusOK, result)
 }
 
 // updateProjectKey is an API endpoint for renaming keys ('strings') in a project.
-func updateProjectKey(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
+func updateProjectKey(ctx iris.Context) {
+	projectID := ctx.Params().Get("projectID")
 	if projectID == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
 
 	var data = projectKeyUpdatePayload{}
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		handleError(w, err)
+
+	if err := ctx.ReadJSON(&data); err != nil {
+		handleError(ctx, err)
 		return
 	}
 
 	if data.OldKey == "" || data.NewKey == "" {
-		handleError(w, apiErrors.ErrUnprocessable)
+		handleError(ctx, apiErrors.ErrUnprocessable)
 		return
 	}
 
@@ -128,7 +127,7 @@ func updateProjectKey(w http.ResponseWriter, r *http.Request) {
 
 	project, localesAffected, err := store.UpdateProjectKey(projectID, data.OldKey, data.NewKey)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
@@ -137,67 +136,67 @@ func updateProjectKey(w http.ResponseWriter, r *http.Request) {
 		"project":         project,
 	}
 
-	render.JSON(w, http.StatusOK, result)
+	render.JSON(ctx, iris.StatusOK, result)
 }
 
 // deleteProjectKey is an API endpoint for deleting keys ('strings') from a project.
-func deleteProjectKey(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
+func deleteProjectKey(ctx iris.Context) {
+	projectID := ctx.Params().Get("projectID")
 	if projectID == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
 
 	var data = projectKeyPayload{}
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		handleError(w, err)
+	if err := ctx.ReadJSON(&data); err != nil {
+		handleError(ctx, err)
 		return
 	}
 
 	if data.Key == "" {
-		handleError(w, apiErrors.ErrUnprocessable)
+		handleError(ctx, apiErrors.ErrUnprocessable)
 		return
 	}
 
 	result, err := store.DeleteProjectKey(projectID, data.Key)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
-	render.JSON(w, http.StatusOK, result)
+	render.JSON(ctx, iris.StatusOK, result)
 }
 
 // showProject is an API endpoint for retrieving a particular project.
-func showProject(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
+func showProject(ctx iris.Context) {
+	projectID := ctx.Params().Get("projectID")
 	if projectID == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
 
 	project, err := store.GetProject(projectID)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
-	render.JSON(w, http.StatusOK, project)
+	render.JSON(ctx, iris.StatusOK, project)
 }
 
 // deleteProject is an API endpoint for deleting a particular project.
-func deleteProject(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
+func deleteProject(ctx iris.Context) {
+	projectID := ctx.Params().Get("projectID")
 	if projectID == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
 
 	err := store.DeleteProject(projectID)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
-	render.JSON(w, http.StatusNoContent, nil)
+	render.JSON(ctx, iris.StatusNoContent, nil)
 }

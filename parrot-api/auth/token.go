@@ -3,8 +3,8 @@ package auth
 import (
 	"fmt"
 
-	"github.com/anthonynsimon/parrot/parrot-api/model"
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/iris-contrib/parrot/parrot-api/model"
 )
 
 // TokenProvider holds the Auth Provider's name and Signing Key.

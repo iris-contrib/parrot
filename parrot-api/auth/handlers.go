@@ -2,14 +2,15 @@ package auth
 
 import (
 	"fmt"
-	"net/http"
 	"time"
 
-	"github.com/anthonynsimon/parrot/parrot-api/datastore"
-	apiErrors "github.com/anthonynsimon/parrot/parrot-api/errors"
-	"github.com/anthonynsimon/parrot/parrot-api/render"
+	"github.com/kataras/iris"
+
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/schema"
+	"github.com/iris-contrib/parrot/parrot-api/datastore"
+	apiErrors "github.com/iris-contrib/parrot/parrot-api/errors"
+	"github.com/iris-contrib/parrot/parrot-api/render"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -47,11 +48,13 @@ type tokenClaims struct {
 }
 
 // IssueToken is a HTTP endpoint that handles authentication and issuing of JWT tokens.
-func IssueToken(tp TokenProvider, store AuthStore) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func IssueToken(tp TokenProvider, store AuthStore) iris.Handler {
+	return func(ctx iris.Context) {
+		r := ctx.Request()
 		err := r.ParseForm()
 		if err != nil {
-			render.Error(w, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
+			ctx.StatusCode(apiErrors.ErrUnprocessable.Status)
+			ctx.WriteString(apiErrors.ErrUnprocessable.Message)
 			return
 		}
 		payload := new(authRequestPayload)
@@ -59,37 +62,39 @@ func IssueToken(tp TokenProvider, store AuthStore) http.HandlerFunc {
 
 		err = decoder.Decode(payload, r.Form)
 		if err != nil {
-			render.Error(w, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
+			ctx.StatusCode(apiErrors.ErrUnprocessable.Status)
+			ctx.WriteString(apiErrors.ErrUnprocessable.Message)
 			return
 		}
 
 		switch payload.GrantType {
 		case "password":
-			handlePasswordGrant(w, *payload, tp, store)
+			handlePasswordGrant(ctx, *payload, tp, store)
 		case "client_credentials":
-			handleClientCredentialsGrant(w, *payload, tp, store)
+			handleClientCredentialsGrant(ctx, *payload, tp, store)
 		default:
-			render.Error(w, apiErrors.ErrBadRequest.Status, apiErrors.ErrBadRequest)
+			ctx.StatusCode(apiErrors.ErrBadRequest.Status)
+			ctx.WriteString(apiErrors.ErrBadRequest.Message)
 			return
 		}
 	}
 }
 
 // handlePasswordGrant handles the 'password' grant type.
-func handlePasswordGrant(w http.ResponseWriter, payload authRequestPayload, tp TokenProvider, store AuthStore) {
+func handlePasswordGrant(ctx iris.Context, payload authRequestPayload, tp TokenProvider, store AuthStore) {
 	if payload.Username == "" || payload.Password == "" {
-		render.Error(w, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
+		render.Error(ctx, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
 		return
 	}
 
 	claimedUser, err := store.GetUserByEmail(payload.Username)
 	if err != nil {
-		render.Error(w, apiErrors.ErrUnauthorized.Status, apiErrors.ErrUnauthorized)
+		render.Error(ctx, apiErrors.ErrUnauthorized.Status, apiErrors.ErrUnauthorized)
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(claimedUser.Password), []byte(payload.Password)); err != nil {
-		render.Error(w, apiErrors.ErrUnauthorized.Status, apiErrors.ErrUnauthorized)
+		render.Error(ctx, apiErrors.ErrUnauthorized.Status, apiErrors.ErrUnauthorized)
 		return
 	}
 
@@ -107,7 +112,7 @@ func handlePasswordGrant(w http.ResponseWriter, payload authRequestPayload, tp T
 
 	tokenString, err := tp.CreateToken(claims)
 	if err != nil {
-		render.Error(w, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
+		render.Error(ctx, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
 		return
 	}
 
@@ -117,25 +122,25 @@ func handlePasswordGrant(w http.ResponseWriter, payload authRequestPayload, tp T
 		ExpiresIn:   fmt.Sprintf("%d", claims.ExpiresAt-time.Now().Unix()),
 	}
 
-	render.JSONWithHeaders(w, http.StatusOK, tokenResponseHeaders, data)
+	render.JSONWithHeaders(ctx, iris.StatusOK, tokenResponseHeaders, data)
 }
 
 // handleClientCredentialsGrant handles the 'client_credentials' grant type.
-func handleClientCredentialsGrant(w http.ResponseWriter, payload authRequestPayload, tp TokenProvider, store AuthStore) {
+func handleClientCredentialsGrant(ctx iris.Context, payload authRequestPayload, tp TokenProvider, store AuthStore) {
 	if payload.ClientId == "" || payload.ClientSecret == "" {
-		render.Error(w, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
+		render.Error(ctx, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
 		return
 	}
 
 	claimedClient, err := store.FindOneClient(payload.ClientId)
 	if err != nil {
-		render.Error(w, apiErrors.ErrUnauthorized.Status, apiErrors.ErrUnauthorized)
+		render.Error(ctx, apiErrors.ErrUnauthorized.Status, apiErrors.ErrUnauthorized)
 		return
 	}
 
 	// Can't use bcrypt, client secret must be visible in web app. Can be regenerated at any time.
 	if claimedClient.Secret != payload.ClientSecret {
-		render.Error(w, apiErrors.ErrUnauthorized.Status, apiErrors.ErrUnauthorized)
+		render.Error(ctx, apiErrors.ErrUnauthorized.Status, apiErrors.ErrUnauthorized)
 		return
 	}
 
@@ -153,7 +158,7 @@ func handleClientCredentialsGrant(w http.ResponseWriter, payload authRequestPayl
 
 	tokenString, err := tp.CreateToken(claims)
 	if err != nil {
-		render.Error(w, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
+		render.Error(ctx, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
 		return
 	}
 
@@ -163,15 +168,16 @@ func handleClientCredentialsGrant(w http.ResponseWriter, payload authRequestPayl
 		ExpiresIn:   fmt.Sprintf("%d", claims.ExpiresAt-time.Now().Unix()),
 	}
 
-	render.JSONWithHeaders(w, http.StatusOK, tokenResponseHeaders, data)
+	render.JSONWithHeaders(ctx, iris.StatusOK, tokenResponseHeaders, data)
 }
 
 // IntrospectToken verifies the validity of a token and writes its claims.
-func IntrospectToken(tp TokenProvider, store datastore.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func IntrospectToken(tp TokenProvider, store datastore.Store) iris.Handler {
+	return func(ctx iris.Context) {
+		r := ctx.Request()
 		err := r.ParseForm()
 		if err != nil {
-			render.Error(w, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
+			render.Error(ctx, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
 			return
 		}
 		payload := new(introspectRequest)
@@ -179,18 +185,18 @@ func IntrospectToken(tp TokenProvider, store datastore.Store) http.HandlerFunc {
 
 		err = decoder.Decode(payload, r.Form)
 		if err != nil {
-			render.Error(w, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
+			render.Error(ctx, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
 			return
 		}
 
 		if payload.Token == "" {
-			render.Error(w, apiErrors.ErrBadRequest.Status, apiErrors.ErrBadRequest)
+			render.Error(ctx, apiErrors.ErrBadRequest.Status, apiErrors.ErrBadRequest)
 			return
 		}
 
 		claims, err := tp.ParseAndExtractClaims(payload.Token)
 		if err != nil {
-			render.Error(w, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
+			render.Error(ctx, apiErrors.ErrUnprocessable.Status, apiErrors.ErrUnprocessable)
 			return
 		}
 
@@ -205,6 +211,6 @@ func IntrospectToken(tp TokenProvider, store datastore.Store) http.HandlerFunc {
 			data["active"] = false
 		}
 
-		render.JSON(w, http.StatusOK, data)
+		render.JSON(ctx, iris.StatusOK, data)
 	}
 }

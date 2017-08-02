@@ -1,9 +1,8 @@
 package api
 
 import (
-	"net/http"
-
-	"github.com/anthonynsimon/parrot/parrot-api/render"
+	"github.com/kataras/iris"
+	"github.com/iris-contrib/parrot/parrot-api/render"
 )
 
 var (
@@ -27,8 +26,8 @@ func isValidContentType(ct string) bool {
 }
 
 // ping is an API endpoint for checking if the API is up.
-func ping(w http.ResponseWriter, r *http.Request) {
-	render.JSON(w, http.StatusOK, map[string]interface{}{
+func ping(ctx iris.Context) {
+	render.JSON(ctx, 200, map[string]interface{}{
 		"message": "Parrot says hello.",
 	})
 }

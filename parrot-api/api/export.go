@@ -3,35 +3,35 @@ package api
 import (
 	"bytes"
 	"fmt"
-	"net/http"
 	"strings"
 
-	apiErrors "github.com/anthonynsimon/parrot/parrot-api/errors"
-	"github.com/anthonynsimon/parrot/parrot-api/export"
-	"github.com/pressly/chi"
+"github.com/kataras/iris"
+	apiErrors "github.com/iris-contrib/parrot/parrot-api/errors"
+	"github.com/iris-contrib/parrot/parrot-api/export"
 )
 
 // exportLocale is an API endpoint for exporting locale pairs.
-func exportLocale(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
+func exportLocale(ctx iris.Context) {
+
+	projectID := ctx.Params().Get("projectID")
 	if projectID == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
-	localeIdent := chi.URLParam(r, "localeIdent")
+	localeIdent := ctx.Params().Get("localeIdent")
 	if projectID == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
-	i18nType := chi.URLParam(r, "type")
+	i18nType := ctx.Params().Get("type")
 	if i18nType == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
 
 	locale, err := store.GetProjectLocaleByIdent(projectID, localeIdent)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
@@ -60,27 +60,26 @@ func exportLocale(w http.ResponseWriter, r *http.Request) {
 	case "ini":
 		exporter = &export.INI{}
 	default:
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
 
 	result, err := exporter.Export(locale)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
 	filename := fmt.Sprintf("%s.%s", localeIdent, exporter.FileExtension())
 
-	header := w.Header()
-	header.Set("Content-Type", "application/octet-stream")
-	header.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
-	header.Set("Content-Length", fmt.Sprintf("%d", len(result)))
+	ctx.Header("Content-Type", "application/octet-stream")
+	ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	ctx.Header("Content-Length", fmt.Sprintf("%d", len(result)))
 
 	buf := bytes.NewBuffer(result)
-	_, err = buf.WriteTo(w)
+	_, err = buf.WriteTo(ctx.ResponseWriter())
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 }

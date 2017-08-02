@@ -4,9 +4,9 @@ package datastore
 import (
 	"database/sql"
 
-	dbErrors "github.com/anthonynsimon/parrot/parrot-api/datastore/errors"
-	"github.com/anthonynsimon/parrot/parrot-api/datastore/postgres"
-	"github.com/anthonynsimon/parrot/parrot-api/model"
+	dbErrors "github.com/iris-contrib/parrot/parrot-api/datastore/errors"
+	"github.com/iris-contrib/parrot/parrot-api/datastore/postgres"
+	"github.com/iris-contrib/parrot/parrot-api/model"
 )
 
 // Store is the interface that datastores must implement.

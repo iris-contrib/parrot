@@ -1,34 +1,32 @@
 package api
 
 import (
-	"encoding/json"
-	"net/http"
+	"github.com/kataras/iris"
 
-	apiErrors "github.com/anthonynsimon/parrot/parrot-api/errors"
-	"github.com/anthonynsimon/parrot/parrot-api/model"
-	"github.com/anthonynsimon/parrot/parrot-api/render"
-	"github.com/pressly/chi"
+	apiErrors "github.com/iris-contrib/parrot/parrot-api/errors"
+	"github.com/iris-contrib/parrot/parrot-api/model"
+	"github.com/iris-contrib/parrot/parrot-api/render"
 )
 
 // createLocale is an API endpoint for creating a new project locale.
-func createLocale(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
+func createLocale(ctx iris.Context) {
+	projectID := ctx.Params().Get("projectID")
 	if projectID == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
 
 	loc := model.Locale{}
-	errs := decodeAndValidate(r.Body, &loc)
+	errs := decodeAndValidate(ctx, &loc)
 	if errs != nil {
-		render.Error(w, http.StatusUnprocessableEntity, errs)
+		render.Error(ctx, iris.StatusUnprocessableEntity, errs)
 		return
 	}
 	loc.ProjectID = projectID
 
 	proj, err := store.GetProject(projectID)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
@@ -36,62 +34,62 @@ func createLocale(w http.ResponseWriter, r *http.Request) {
 
 	result, err := store.CreateLocale(loc)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
-	render.JSON(w, http.StatusCreated, result)
+	render.JSON(ctx, iris.StatusCreated, result)
 }
 
 // showLocale is an API endpoint for retrieving a project locale by ident.
-func showLocale(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
+func showLocale(ctx iris.Context) {
+	projectID := ctx.Params().Get("projectID")
 	if projectID == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
-	ident := chi.URLParam(r, "localeIdent")
+	ident := ctx.Params().Get("localeIdent")
 	if ident == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
 
 	loc, err := store.GetProjectLocaleByIdent(projectID, ident)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
 	proj, err := store.GetProject(projectID)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
 	loc.SyncKeys(proj.Keys)
 
-	render.JSON(w, http.StatusOK, loc)
+	render.JSON(ctx, iris.StatusOK, loc)
 }
 
 // findLocales is an API endpoint for retrieving project locales and filtering by ident.
-func findLocales(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
+func findLocales(ctx iris.Context) {
+	projectID := ctx.Params().Get("projectID")
 	if projectID == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 
 	}
-	localeIdents := r.URL.Query()["ident"]
+	localeIdents := ctx.Request().URL.Query()["ident"]
 
 	locs, err := store.GetProjectLocales(projectID, localeIdents...)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
 	project, err := store.GetProject(projectID)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
@@ -99,31 +97,32 @@ func findLocales(w http.ResponseWriter, r *http.Request) {
 		locs[i].SyncKeys(project.Keys)
 	}
 
-	render.JSON(w, http.StatusOK, locs)
+	render.JSON(ctx, iris.StatusOK, locs)
 }
 
 // updateLocalePairs is an API endpoint for updating a locale's key value pairs.
-func updateLocalePairs(w http.ResponseWriter, r *http.Request) {
-	ident := chi.URLParam(r, "localeIdent")
+func updateLocalePairs(ctx iris.Context) {
+	ident := ctx.Params().Get("localeIdent")
 	if ident == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
-	projectID := chi.URLParam(r, "projectID")
+	projectID := ctx.Params().Get("projectID")
 	if projectID == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
 
 	loc := &model.Locale{}
-	if err := json.NewDecoder(r.Body).Decode(&loc.Pairs); err != nil {
-		handleError(w, apiErrors.ErrUnprocessable)
+
+	if err := ctx.ReadJSON(&loc.Pairs); err != nil {
+		handleError(ctx, apiErrors.ErrUnprocessable)
 		return
 	}
 
 	project, err := store.GetProject(projectID)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
@@ -131,31 +130,31 @@ func updateLocalePairs(w http.ResponseWriter, r *http.Request) {
 
 	result, err := store.UpdateLocalePairs(projectID, ident, loc.Pairs)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
-	render.JSON(w, http.StatusOK, result)
+	render.JSON(ctx, iris.StatusOK, result)
 }
 
 // deleteLocale is an API endpoint for deleting a project's locale.
-func deleteLocale(w http.ResponseWriter, r *http.Request) {
-	ident := chi.URLParam(r, "localeIdent")
+func deleteLocale(ctx iris.Context) {
+	ident := ctx.Params().Get("localeIdent")
 	if ident == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
-	projectID := chi.URLParam(r, "projectID")
+	projectID := ctx.Params().Get("projectID")
 	if projectID == "" {
-		handleError(w, apiErrors.ErrBadRequest)
+		handleError(ctx, apiErrors.ErrBadRequest)
 		return
 	}
 
 	err := store.DeleteLocale(projectID, ident)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, err)
 		return
 	}
 
-	render.JSON(w, http.StatusNoContent, nil)
+	render.JSON(ctx, iris.StatusNoContent, nil)
 }

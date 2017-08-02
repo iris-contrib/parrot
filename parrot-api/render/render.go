@@ -2,10 +2,7 @@
 package render
 
 import (
-	"encoding/json"
-	"net/http"
-
-	"github.com/Sirupsen/logrus"
+	"github.com/kataras/iris"
 )
 
 var (
@@ -24,55 +21,39 @@ type responseMeta struct {
 }
 
 // Error writes an API error to the response.
-func Error(w http.ResponseWriter, status int, err error) {
-	w.Header().Set("Content-Type", jsonContentType)
-	w.WriteHeader(status)
-
+func Error(ctx iris.Context, status int, err error) {
 	body := apiResponseBody{
 		responseMeta: responseMeta{
 			Status: status,
 			Error:  err},
 		Payload: nil}
-
-	writeJSONBody(w, body)
+	ctx.StatusCode(status)
+	ctx.JSON(body)
 }
 
 // JSON writes a payload as json to the response.
-func JSON(w http.ResponseWriter, status int, payload interface{}) {
-	w.Header().Set("Content-Type", jsonContentType)
-	w.WriteHeader(status)
-
+func JSON(ctx iris.Context, status int, payload interface{}) {
 	body := apiResponseBody{
 		responseMeta: responseMeta{
 			Status: status},
 		Payload: payload}
 
-	writeJSONBody(w, body)
+	ctx.StatusCode(status)
+	ctx.JSON(body)
 }
 
 // JSONWithHeaders writes a payload as json to the response and includes the provided headers.
-func JSONWithHeaders(w http.ResponseWriter, status int, headers map[string]string, payload interface{}) {
-	h := w.Header()
-	h.Set("Content-Type", jsonContentType)
+func JSONWithHeaders(ctx iris.Context, status int, headers map[string]string, payload interface{}) {
+	h := ctx.ResponseWriter().Header()
 	for k, v := range headers {
 		h.Set(k, v)
 	}
-	w.WriteHeader(status)
 
 	body := apiResponseBody{
 		responseMeta: responseMeta{
 			Status: status},
 		Payload: payload}
 
-	writeJSONBody(w, body)
-}
-
-// writeJSONBody handles the marshalling and writing of the response body.
-func writeJSONBody(w http.ResponseWriter, body apiResponseBody) {
-	encoded, err := json.MarshalIndent(body, "", "    ")
-	if err != nil {
-		logrus.Error(err)
-	}
-
-	w.Write(encoded)
+	ctx.StatusCode(status)
+	ctx.JSON(body)
 }

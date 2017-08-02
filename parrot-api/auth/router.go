@@ -2,16 +2,12 @@
 package auth
 
 import (
-	"net/http"
-
-	"github.com/pressly/chi"
+	"github.com/kataras/iris"
 )
 
 // NewRouter creates and configures all routes for the parameter authentication provider.
-func NewRouter(ds AuthStore, tp TokenProvider) http.Handler {
-	router := chi.NewRouter()
-
-	router.Post("/token", IssueToken(tp, ds))
-
-	return router
+func NewRouter(ds AuthStore, tp TokenProvider) iris.Configurator {
+	return func(app *iris.Application) {
+		app.Post("/api/v1/auth/token", IssueToken(tp, ds))
+	}
 }
