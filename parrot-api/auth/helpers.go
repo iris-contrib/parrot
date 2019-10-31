@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/kataras/golog"
-	"github.com/kataras/iris"
+	"github.com/kataras/iris/v12"
 )
 
 // getAuthHeaderToken gets the token string from the HTTP Authorization header.

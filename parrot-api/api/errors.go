@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/kataras/iris"
+	"github.com/kataras/iris/v12"
 
 	datastoreErrors "github.com/iris-contrib/parrot/parrot-api/datastore/errors"
 	apiErrors "github.com/iris-contrib/parrot/parrot-api/errors"

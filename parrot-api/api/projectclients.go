@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 
-	"github.com/kataras/iris"
+	"github.com/kataras/iris/v12"
 
 	apiErrors "github.com/iris-contrib/parrot/parrot-api/errors"
 	"github.com/iris-contrib/parrot/parrot-api/model"

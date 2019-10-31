@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kataras/iris"
+	"github.com/kataras/iris/v12"
 
 	"github.com/iris-contrib/parrot/parrot-api/auth"
 	apiErrors "github.com/iris-contrib/parrot/parrot-api/errors"

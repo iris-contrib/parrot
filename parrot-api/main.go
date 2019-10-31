@@ -8,9 +8,9 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/kataras/golog"
-	"github.com/kataras/iris"
-	"github.com/kataras/iris/middleware/logger"
-	"github.com/kataras/iris/middleware/recover"
+	"github.com/kataras/iris/v12"
+	"github.com/kataras/iris/v12/middleware/logger"
+	"github.com/kataras/iris/v12/middleware/recover"
 
 	"github.com/iris-contrib/parrot/parrot-api/api"
 	"github.com/iris-contrib/parrot/parrot-api/auth"

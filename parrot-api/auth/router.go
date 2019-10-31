@@ -2,7 +2,7 @@
 package auth
 
 import (
-	"github.com/kataras/iris"
+	"github.com/kataras/iris/v12"
 )
 
 // NewRouter creates and configures all routes for the parameter authentication provider.

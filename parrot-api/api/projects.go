@@ -7,7 +7,7 @@ import (
 	"github.com/iris-contrib/parrot/parrot-api/model"
 	"github.com/iris-contrib/parrot/parrot-api/render"
 
-	"github.com/kataras/iris"
+	"github.com/kataras/iris/v12"
 )
 
 type projectKeyPayload struct {
